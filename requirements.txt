@@ -1,0 +1,7 @@
+streamlit==1.31.0
+pygame==2.5.2
+numpy==1.26.3
+pillow==10.1.0
+matplotlib==3.8.2
+neat-python==0.92
+graphviz==0.20.1

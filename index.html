@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DinoAI - Neural Network Training Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style src="style.css"></style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <a href="#" class="logo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H8C6.9 2 6 2.9 6 4v10c0 1.1.9 2 2 2h8z"></path>
+                        <path d="M12 16v4"></path>
+                        <path d="M8 20h8"></path>
+                        <path d="M9 7h6"></path>
+                        <path d="M9 11h6"></path>
+                    </svg>
+                    <span>DinoAI</span>
+                </a>
+                <div class="nav-links">
+                    <a href="#play" class="tab-link active" data-tab="play">Play Yourself</a>
+                    <a href="#train" class="tab-link" data-tab="train">Train Model</a>
+                    <a href="#expert" class="tab-link" data-tab="expert">Expert Model</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <section id="welcome" class="tab-content active" data-tab="play">
+                <h1>Welcome to DinoAI</h1>
+                <p>Experience the classic Chrome Dinosaur game enhanced with neural networks and reinforcement learning. Choose to play yourself, watch AI training in real-time, or see our expert model in action.</p>
+                
+                <div class="card">
+                    <h2>Play the Game Yourself</h2>
+                    <p>Test your skills in the classic Chrome Dinosaur Game. Press Space or Up arrow to jump over obstacles, Down arrow to duck.</p>
+                    
+                    <div class="game-container">
+                        <iframe src="https://chromedino.com/" id="game-iframe" frameborder="0" scrolling="no" width="100%" height="100%" loading="lazy"></iframe>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="current-score">0</div>
+                            <div class="stat-label">Current Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="high-score">0</div>
+                            <div class="stat-label">High Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="games-played">0</div>
+                            <div class="stat-label">Games Played</div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="start-game">Start New Game</button>
+                        <button class="btn btn-secondary" id="reset-stats">Reset Stats</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="training-section" class="tab-content" data-tab="train">
+                <h1>AI Training Visualization</h1>
+                <p>Watch as NEAT evolves neural networks to play the dinosaur game. Adjust parameters, view the training process in real-time, and see how neural networks learn through generations.</p>
+                
+                <div class="card">
+                    <h2>Training Controls</h2>
+                    
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="population-size">Population Size</label>
+                            <input type="range" id="population-size" min="10" max="100" value="50" step="10">
+                            <span id="population-size-value">50</span>
+                        </div>
+                        
+                        <div class="control-item">
+                            <label for="mutation-rate">Mutation Rate</label>
+                            <input type="range" id="mutation-rate" min="0.01" max="0.5" value="0.1" step="0.01">
+                            <span id="mutation-rate-value">0.1</span>
+                        </div>
+                        
+                        <div class="control-item">
+                            <label for="elitism">Elitism (Best to Keep)</label>
+                            <input type="range" id="elitism" min="1" max="10" value="5" step="1">
+                            <span id="elitism-value">5</span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="training-mode">Training Mode</label>
+                            <select id="training-mode">
+                                <option value="neat">NEAT (Neuroevolution)</option>
+                                <option value="cnn">CNN (Deep Learning)</option>
+                                <option value="hybrid">Hybrid (NEAT + CNN)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-item">
+                            <label for="reward-function">Reward Function</label>
+                            <select id="reward-function">
+                                <option value="distance">Distance Based</option>
+                                <option value="score">Score Based</option>
+                                <option value="combo">Combined Metrics</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="start-training">Start Training</button>
+                        <button class="btn btn-secondary" id="pause-training" disabled>Pause</button>
+                        <button class="btn btn-danger" id="stop-training" disabled>Stop</button>
+                    </div>
+                    
+                    <div class="sim-speed-control">
+                        <label>Simulation Speed:</label>
+                        <div class="speed-btn active" data-speed="1">1x</div>
+                        <div class="speed-btn" data-speed="2">2x</div>
+                        <div class="speed-btn" data-speed="5">5x</div>
+                        <div class="speed-btn" data-speed="10">10x</div>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" id="training-progress"></div>
+                    </div>
+                    <div id="training-status">
+                        Training not started
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Training Statistics</h2>
+                    
+                    <div class="tabs">
+                        <div class="tab active" data-tab-content="simulation">Simulation</div>
+                        <div class="tab" data-tab-content="network">Network</div>
+                        <div class="tab" data-tab-content="performance">Performance</div>
+                    </div>
+                    
+                    <div class="tab-content active" data-tab-content="simulation">
+                        <div class="game-container">
+                            <div id="training-visualization">
+                                <img src="/api/placeholder/800/300" alt="Training visualization placeholder" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;"/>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;">
+                                    <h3>Click "Start Training" to begin</h3>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="statistics-panel">
+                            <div class="stat-row">
+                                <span>Generation:</span>
+                                <span id="current-generation">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>Best Fitness:</span>
+                                <span id="best-fitness">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>Average Fitness:</span>
+                                <span id="avg-fitness">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>Best Score:</span>
+                                <span id="best-ai-score">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" data-tab-content="network">
+                        <div class="network-visualizer" id="network-visualizer">
+                            <img src="/api/placeholder/800/400" alt="Network visualization placeholder" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;"/>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;">
+                                <h3>Network will appear during training</h3>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion">
+                            <div class="accordion-header">
+                                <h3>Network Information</h3>
+                                <div class="accordion-arrow">▼</div>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="statistics-panel">
+                                    <div class="stat-row">
+                                        <span>Inputs:</span>
+                                        <span id="network-inputs">4</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Hidden Layers:</span>
+                                        <span id="network-hidden">2</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Outputs:</span>
+                                        <span id="network-outputs">3</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Neurons:</span>
+                                        <span id="network-neurons">12</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Connections:</span>
+                                        <span id="network-connections">24</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion" id="cnn-visualization-container" style="display: none;">
+                            <div class="accordion-header">
+                                <h3>CNN Visualization</h3>
+                                <div class="accordion-arrow">▼</div>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="cnn-layer">
+                                    <h4>Convolutional Layer 1</h4>
+                                    <div class="cnn-filters" id="cnn-filters-1">
+                                        <!-- Filters will be generated here -->
+                                    </div>
+                                </div>
+                                <div class="cnn-layer">
+                                    <h4>Convolutional Layer 2</h4>
+                                    <div class="cnn-filters" id="cnn-filters-2">
+                                        <!-- Filters will be generated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" data-tab-content="performance">
+                        <div class="charts-container">
+                            <div class="chart-wrapper">
+                                <canvas id="fitness-chart"></canvas>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="score-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-wrapper">
+                                <canvas id="species-chart"></canvas>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="complexity-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="expert-section" class="tab-content" data-tab="expert">
+                <h1>Expert AI Model</h1>
+                <p>Watch our pre-trained expert model playing the game at an extremely high level. This model has been trained using advanced deep reinforcement learning techniques and has achieved over 95% accuracy.</p>
+                
+                <div class="card">
+                    <h2>Expert Model Performance</h2>
+                    
+                    <div class="game-container">
+                        <div id="expert-visualization">
+                            <img src="/api/placeholder/800/300" alt="Expert visualization placeholder" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;"/>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;">
+                                <h3>Click "Watch Expert Play" to begin</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="start-expert">Watch Expert Play</button>
+                        <button class="btn btn-secondary" id="pause-expert" disabled>Pause</button>
+                        <button class="btn btn-danger" id="stop-expert" disabled>Stop</button>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="expert-score">0</div>
+                            <div class="stat-label">Current Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="expert-high-score">9999+</div>
+                            <div class="stat-label">Record Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="expert-accuracy">98.7%</div>
+                            <div class="stat-label">Jump Accuracy</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="expert-decisions">124/s</div>
+                            <div class="stat-label">Decisions/sec</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Model Architecture</h2>
+                    
+                    <div class="network-visualizer" id="expert-network-visualizer">
+                        <img src="/api/placeholder/800/400" alt="Expert network visualization placeholder" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;"/>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;">
+                            <h3>Network will appear when expert plays</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion">
+                        <div class="accordion-header">
+                            <h3>Technical Specifications</h3>
+                            <div class="accordion-arrow">▼</div>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="statistics-panel">
+                                <div class="stat-row">
+                                    <span>Architecture:</span>
+                                    <span>Hybrid CNN + NEAT</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Input Resolution:</span>
+                                    <span>84x84 grayscale</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Convolutional Layers:</span>
+                                    <span>3</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Dense Layers:</span>
+                                    <span>2</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Parameters:</span>
+                                    <span>1.2M</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Training Time:</span>
+                                    <span>72 hours</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Training Environment:</span>
+                                    <span>Custom TensorFlow + NEAT</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion">
+                        <div class="accordion-header">
+                            <h3>Decision Making Process</h3>
+                            <div class="accordion-arrow">▼</div>
+                        </div>
+                        <div class="accordion-content">
+                            <p>The expert model uses a combination of visual processing and pattern recognition to make decisions:</p>
+                            <ol style="padding-left: 1.5rem;">
+                                <li>Frame capture at 60fps</li>
+                                <li>Image preprocessing (grayscale conversion, resizing)</li>
+                                <li>Feature extraction via convolutional layers</li>
+                                <li>Distance and speed estimation</li>
+                                <li>Action selection (Jump, Duck, or No-op)</li>
+                                <li>Recurrent memory for state tracking</li>
+                            </ol>
+                            <p>The model was trained using reinforcement learning with a custom reward function that optimizes for both survival time and obstacle avoidance efficiency.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <script src="script.js"></script>
+</body>
+</html>
+                

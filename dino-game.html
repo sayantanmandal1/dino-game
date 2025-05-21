@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chrome Dino Game</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="sty.css">
+</head>
+<body class="light-mode">
+  <div class="night-transition"></div>
+  
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <a href="#" class="logo">
+          <svg width="40" height="40" viewBox="0 0 40 43" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.5 21.1L8.5 25.9 13.2 25.9 13.2 42.8 17.9 42.8 17.9 25.9 35.8 25.9 35.8 21.1z" fill="currentColor"/>
+            <path d="M29.3 0.4L15.6 0.4 15.6 8.3 29.3 8.3z" fill="currentColor"/>
+            <path d="M36.8 8.3L29.3 8.3 29.3 14.4 36.8 14.4z" fill="currentColor"/>
+            <path d="M36.8 14.4L15.6 14.4 15.6 20.6 36.8 20.6z" fill="currentColor"/>
+            <path d="M15.6 0.4L8.5 0.4 8.5 14.4 15.6 14.4z" fill="currentColor"/>
+            <path d="M4.9 14.4L0.6 14.4 0.6 25.4 4.9 25.4z" fill="currentColor"/>
+          </svg>
+          Chrome Dino Game
+        </a>
+        <div class="theme-toggle">
+          <button class="toggle-btn" id="light-toggle">
+            <i class="fas fa-sun"></i> Light
+          </button>
+          <button class="toggle-btn" id="dark-toggle">
+            <i class="fas fa-moon"></i> Dark
+          </button>
+          <button class="toggle-btn" id="neon-toggle">
+            <i class="fas fa-bolt"></i> Neon
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section class="hero">
+        <div class="hero-content">
+          <h1>Chrome Dino Runner</h1>
+          <p>The classic offline dinosaur game now with AI capabilities. Play yourself, watch the bot train, or see the trained bot in action!</p>
+        </div>
+      </section>
+
+      <section class="game-modes">
+        <div class="mode-card" id="play-yourself-card">
+          <div class="card-image">
+            <img src="/api/placeholder/300/180" alt="Play Yourself Mode">
+          </div>
+          <div class="card-content">
+            <h3>Play Yourself</h3>
+            <p>Take control of the dinosaur and see how far you can go. Use the up arrow to jump and down arrow to duck.</p>
+            <a href="#" class="play-btn" id="play-yourself-btn">Play Now</a>
+          </div>
+        </div>
+
+        <div class="mode-card" id="bot-training-card">
+          <div class="card-image">
+            <img src="/api/placeholder/300/180" alt="Bot Training Mode">
+          </div>
+          <div class="card-content">
+            <h3>Watch Bot Training</h3>
+            <p>Observe as our AI learns to play the game. Watch it improve with each attempt through machine learning.</p>
+            <a href="#" class="play-btn" id="bot-training-btn">Watch Training</a>
+          </div>
+        </div>
+
+        <div class="mode-card" id="trained-bot-card">
+          <div class="card-image">
+            <img src="/api/placeholder/300/180" alt="Trained Bot Mode">
+          </div>
+          <div class="card-content">
+            <h3>Trained Bot Results</h3>
+            <p>See how well our fully trained AI performs in the game. Can it beat your high score?</p>
+            <a href="#" class="play-btn" id="trained-bot-btn">See Results</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="game-container" id="game-container">
+        <div class="game-header">
+          <div class="game-title" id="game-title">Play Yourself Mode</div>
+          <div class="game-controls">
+            <button class="control-btn" id="pause-btn">
+              <i class="fas fa-pause"></i> Pause
+            </button>
+            <button class="control-btn" id="restart-btn">
+              <i class="fas fa-redo"></i> Restart
+            </button>
+            <button class="control-btn" id="exit-btn">
+              <i class="fas fa-times"></i> Exit
+            </button>
+          </div>
+        </div>
+        <div id="game-canvas">
+          <div class="dino"></div>
+          <div class="ground"></div>
+          <div class="loader"></div>
+          <div class="bot-status">Bot Analyzing</div>
+          <div class="debug-panel"></div>
+          <div class="bot-training-indicator">Training in progress...</div>
+          <div class="neural-path"></div>
+          <div class="game-over">
+            <h2>Game Over</h2>
+            <p>Score: <span id="final-score">0</span></p>
+            <button class="restart-btn">Play Again</button>
+          </div>
+        </div>
+        <div class="game-info">
+          <div class="score">Score: <span id="score">0</span></div>
+          <div class="high-score">High Score: <span id="high-score">0</span></div>
+        </div>
+      </section>
+
+      <section class="instructions">
+        <h2>How to Play</h2>
+        <div class="instructions-grid">
+          <div class="instruction-card">
+            <div class="instruction-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="instruction-text">
+              <p>Press <strong>Up Arrow</strong> or <strong>Space</strong> to jump over obstacles.</p>
+            </div>
+          </div>
+          <div class="instruction-card">
+            <div class="instruction-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="instruction-text">
+              <p>Press <strong>Down Arrow</strong> to duck under flying obstacles.</p>
+            </div>
+          </div>
+          <div class="instruction-card">
+            <div class="instruction-icon">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="instruction-text">
+              <p>The game speed increases as your score grows. How far can you go?</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="achievements">
+        <h2>Achievements</h2>
+        <div class="achievement-list">
+          <div class="achievement" id="achievement-beginner">
+            <div class="achievement-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="achievement-info">
+              <h4>Beginner</h4>
+              <p>Score 100 points in a single run</p>
+            </div>
+          </div>
+          <div class="achievement" id="achievement-intermediate">
+            <div class="achievement-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="achievement-info">
+              <h4>Intermediate</h4>
+              <p>Score 500 points in a single run</p>
+            </div>
+          </div>
+          <div class="achievement" id="achievement-expert">
+            <div class="achievement-icon">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="achievement-info">
+              <h4>Expert</h4>
+              <p>Score 1000 points in a single run</p>
+            </div>
+          </div>
+          <div class="achievement" id="achievement-master">
+            <div class="achievement-icon">
+              <i class="fas fa-crown"></i>
+            </div>
+            <div class="achievement-info">
+              <h4>Master</h4>
+              <p>Score 2000 points in a single run</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-links">
+          <a href="#" class="footer-link">How to Play</a>
+          <a href="#" class="footer-link">About</a>
+          <a href="#" class="footer-link">High Scores</a>
+        </div>
+        <div class="copyright">
+          Chrome Dino Game Recreation &copy; 2025
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme switching
+    document.addEventListener('DOMContentLoaded', function() {
+      const body = document.body;
+      const lightToggle = document.getElementById('light-toggle');
+      const darkToggle = document.getElementById('dark-toggle');
+      const neonToggle = document.getElementById('neon-toggle');
+      const nightTransition = document.querySelector('.night-transition');
+
+      // Theme toggle functions
+      lightToggle.addEventListener('click', function() {
+        activateTransition();
+        setTimeout(() => {
+          body.className = 'light-mode';
+          deactivateTransition();
+        }, 500);
+      });
+
+      darkToggle.addEventListener('click', function() {
+        activateTransition();
+        setTimeout(() => {
+          body.className = 'dark-mode';
+          deactivateTransition();
+        }, 500);
+      });
+
+      neonToggle.addEventListener('click', function() {
+        activateTransition();
+        setTimeout(() => {
+          body.className = 'neon-mode';
+          deactivateTransition();
+        }, 500);
+      });
+
+      function activateTransition() {
+        nightTransition.classList.add('active');
+      }
+
+      function deactivateTransition() {
+        setTimeout(() => {
+          nightTransition.classList.remove('active');
+        }, 500);
+      }
+
+      // Game mode selection
+      const playYourselfBtn = document.getElementById('play-yourself-btn');
+      const botTrainingBtn = document.getElementById('bot-training-btn');
+      const trainedBotBtn = document.getElementById('trained-bot-btn');
+      const gameContainer = document.getElementById('game-container');
+      const gameTitle = document.getElementById('game-title');
+      const exitBtn = document.getElementById('exit-btn');
+      const pauseBtn = document.getElementById('pause-btn');
+      const restartBtn = document.getElementById('restart-btn');
+      const debugPanel = document.querySelector('.debug-panel');
+      const botStatus = document.querySelector('.bot-status');
+      const botTrainingIndicator = document.querySelector('.bot-training-indicator');
+      const neuralPath = document.querySelector('.neural-path');
+
+      playYourselfBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        gameContainer.style.display = 'block';
+        gameTitle.textContent = 'Play Yourself Mode';
+        botStatus.style.display = 'none';
+        debugPanel.classList.remove('active');
+        botTrainingIndicator.style.display = 'none';
+        neuralPath.style.display = 'none';
+        startGame('play');
+        scrollToGame();
+      });
+
+      botTrainingBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        gameContainer.style.display = 'block';
+        gameTitle.textContent = 'Bot Training Mode';
+        botStatus.style.display = 'block';
+        debugPanel.classList.add('active');
+        botTrainingIndicator.style.display = 'block';
+        neuralPath.style.display = 'block';
+        startGame('training');
+        scrollToGame();
+      });
+
+      trainedBotBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        gameContainer.style.display = 'block';
+        gameTitle.textContent = 'Trained Bot Results';
+        botStatus.style.display = 'block';
+        debugPanel.classList.remove('active');
+        botTrainingIndicator.style.display = 'none';
+        neuralPath.style.display = 'block';
+        startGame('bot');
+        scrollToGame();
+      });
+
+      exitBtn.addEventListener('click', function() {
+        gameContainer.style.display = 'none';
+        stopGame();
+      });
+
+      pauseBtn.addEventListener('click', function() {
+        if (game.running) {
+          game.pause();
+          pauseBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+        } else {
+          game.resume();
+          pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        }
+      });
+
+      restartBtn.addEventListener('click', function() {
+        restartGame();
+      });
+
+      function scrollToGame() {
+        gameContainer.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      // Game Code Implementation
+      const GAME_STATE = {
+        MENU: 0,
+        PLAYING: 1,
+        GAME_OVER: 2,
+        PAUSED: 3
+      };
+
+      const game = {
+        canvas: document.getElementById('game-canvas'),
+        score: 0,
+        highScore: localStorage.getItem('highScore') || 0,
+        speed: 6,
+        gravity: 0.6,
+        objects: [],
+        clouds: [],
+        state: GAME_STATE.MENU,
+        running: false,
+        mode: 'play',
+        debugInfo: {},
+        
+        init: function() {
+          this.dino = document.querySelector('.dino');
+          this.ground = document.querySelector('.ground');
+          this.scoreDisplay = document.getElementById('score');
+          this.highScoreDisplay = document.getElementById('high-score');
+          this.gameOverScreen = document.querySelector('.game-over');
+          this.finalScoreDisplay = document.getElementById('final-score');
+          this.restartButton = document.querySelector('.restart-btn');
+          this.debugPanel = document.querySelector('.debug-panel');
+          this.botStatus = document.querySelector('.bot-status');
+          
+          this.dinoPos = { x: 50, y: 0 };
+          this.dinoSize = { width: 44, height: 47 };
+          this.isJumping = false;
+          this.isDucking = false;
+          this.jumpVelocity = 0;
+          this.groundLevel = this.canvas.offsetHeight - 24 - this.dinoSize.height;
+          this.dinoPos.y = this.groundLevel;
+          
+          this.dino.style.width = this.dinoSize.width + 'px';
+          this.dino.style.height = this.dinoSize.height + 'px';
+          this.dino.style.left = this.dinoPos.x + 'px';
+          this.dino.style.bottom = this.dinoPos.y + 'px';
+          
+          this.ground.style.height = '24px';
+          
+          this.scoreDisplay.textContent = this.score;
+          this.highScoreDisplay.textContent = this.highScore;
+          
+          this.restartButton.addEventListener('click', restartGame);
+          
+          document.addEventListener('keydown', this.handleKeyDown.bind(this));
+          document.addEventListener('keyup', this.handleKeyUp.bind(this));
+          
+          // Initialize bot behavior if applicable
+          if (this.mode === 'training' || this.mode === 'bot') {
+            this.initBot();
+          }
+        },
+        
+        start: function() {
+          this.running = true;
+          this.state = GAME_STATE.PLAYING;
+          this.score = 0;
+          this.speed = 6;
+          this.objects = [];
+          this.clouds = [];
+          this.gameOverScreen.style.display = 'none';
+          this.generateClouds();
+          this.generateObstacle();
+          this.gameLoop();
+        },
+        
+        stop: function() {
+          this.running = false;
+          cancelAnimationFrame(this.animationFrame);
+        },
+        
+        pause: function() {
+          if (this.state === GAME_STATE.PLAYING) {
+            this.state = GAME_STATE.PAUSED;
+            this.running = false;
+          }
+        },
+        
+        resume: function() {
+          if (this.state === GAME_STATE.PAUSED) {
+            this.state = GAME_STATE.PLAYING;
+            this.running = true;
+            this.gameLoop();
+          }
+        },
+        
+        gameLoop: function() {
+          if (!this.running) return;
+          
+          this.update();
+          this.render();
+          
+          this.animationFrame = requestAnimationFrame(this.gameLoop.bind(this));
+        },
+        
+        update: function() {
+          // Update score
+          this.score++;
+          this.scoreDisplay.textContent = Math.floor(this.score / 10);
+          
+          // Increase speed as score increases
+          if (this.score % 500 === 0) {
+            this.speed += 0.2;
+          }
+          
+          // Update dino position
+          if (this.isJumping) {
+            this.dinoPos.y += this.jumpVelocity;
+            this.jumpVelocity -= this.gravity;
+            
+            if (this.dinoPos.y <= this.groundLevel) {
+              this.dinoPos.y = this.groundLevel;
+              this.isJumping = false;
+              this.jumpVelocity = 0;
+            }
+          }
+          
+          // Generate new obstacles
+          if (this.score % 100 === 0 && Math.random() < 0.5) {
+            this.generateObstacle();
+          }
+          
+          // Generate clouds
+          if (this.score % 200 === 0 && Math.random() < 0.7) {
+            this.generateClouds();
+          }
+          
+          // Move and check collisions with obstacles
+          for (let i = 0; i < this.objects.length; i++) {
+            const obj = this.objects[i];
+            obj.x -= this.speed;
+            
+            // Remove objects that are off-screen
+            if (obj.x + obj.width < 0) {
+              this.objects.splice(i, 1);
+              i--;
+              continue;
+            }
+            
+            // Check for collisions
+            if (this.checkCollision(obj)) {
+              this.gameOver();
+              return;
+            }
+          }
+          
+          // Move clouds
+          for (let i = 0; i < this.clouds.length; i++) {
+            const cloud = this.clouds[i];
+            cloud.x -= this.speed / 3;
+            
+            // Remove clouds that are off-screen
+            if (cloud.x + cloud.width < 0) {
+              this.clouds.splice(i, 1);
+              i--;
+            }
+          }
+          
+          // Bot behavior if applicable
+          if (this.mode === 'training' || this.mode === 'bot') {
+            this.updateBot();
+          }
+        },
+        
+        render: function() {
+          // Position the dino
+          this.dino.style.bottom = this.dinoPos.y + 'px';
+          
+          // Adjust dino appearance based on state
+          if (this.isDucking) {
+            this.dino.style.height = (this.dinoSize.height * 0.7) + 'px';
+            this.dino.style.width = (this.dinoSize.width * 1.3) + 'px';
+          } else {
+            this.dino.style.height = this.dinoSize.height + 'px';
+            this.dino.style.width = this.dinoSize.width + 'px';
+          }
+          
+          // Remove existing obstacles and clouds DOM elements
+          const existingObstacles = document.querySelectorAll('.cactus, .bird');
+          existingObstacles.forEach(obstacle => obstacle.remove());
+          
+          const existingClouds = document.querySelectorAll('.cloud');
+          existingClouds.forEach(cloud => cloud.remove());
+          
+          // Render obstacles
+          this.objects.forEach(obj => {
+            let obstacleEl;
+            if (obj.type === 'cactus') {
+              obstacleEl = document.createElement('div');
+              obstacleEl.classList.add('cactus');
+            } else if (obj.type === 'bird') {
+              obstacleEl = document.createElement('div');
+              obstacleEl.classList.add('bird');
+            }
+            
+            obstacleEl.style.left = obj.x + 'px';
+            obstacleEl.style.bottom = obj.y + 'px';
+            obstacleEl.style.width = obj.width + 'px';
+            obstacleEl.style.height = obj.height + 'px';
+            
+            this.canvas.appendChild(obstacleEl);
+          });
+          
+          // Render clouds
+          this.clouds.forEach(cloud => {
+            const cloudEl = document.createElement('div');
+            cloudEl.classList.add('cloud');
+            cloudEl.style.left = cloud.x + 'px';
+            cloudEl.style.bottom = cloud.y + 'px';
+            cloudEl.style.width = cloud.width + 'px';
+            cloudEl.style.height = cloud.height + 'px';
+            
+            this.canvas.appendChild(cloudEl);
+          });
+          
+          // Update debug panel if applicable
+          if (this.mode === 'training' || this.mode === 'bot') {
+            this.renderDebugInfo();
+          }
+        },
+        
+        generateObstacle: function() {
+          const canvasWidth = this.canvas.offsetWidth;
+          const obstacleTypes = ['cactus', 'bird'];
+          const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+          
+          let obstacle = {
+            type: type,
+            x: canvasWidth,
+            width: 0,
+            height: 0,
+            y: 0
+          };
+          
+          if (type === 'cactus') {
+            // Random cactus size
+            const size = Math.random() < 0.5 ? 'small' : 'large';
+            obstacle.width = size === 'small' ? 17 : 25;
+            obstacle.height = size === 'small' ? 35 : 50;
+            obstacle.y = this.groundLevel;
+          } else if (type === 'bird') {
+            // Bird at random height
+            obstacle.width = 46;
+            obstacle.height = 40;
+            const heightOptions = [
+              this.groundLevel, // On ground
+              this.groundLevel + 40, // Mid-air
+              this.groundLevel + this.dinoSize.height + 10 // High (requires ducking)
+            ];
+            obstacle.y = heightOptions[Math.floor(Math.random() * heightOptions.length)];
+          }
+          
+          this.objects.push(obstacle);
+        },
+        
+        generateClouds: function() {
+          const canvasWidth = this.canvas.offsetWidth;
+          const canvasHeight = this.canvas.offsetHeight;
+          
+          const cloud = {
+            x: canvasWidth,
+            y: Math.random() * (canvasHeight - 200) + 100,
+            width: 70,
+            height: 40
+          };
+          
+          this.clouds.push(cloud);
+        },
+        
+        checkCollision: function(obj) {
+          const dinoLeft = this.dinoPos.x;
+          const dinoRight = this.dinoPos.x + (this.isDucking ? this.dinoSize.width * 1.3 : this.dinoSize.width);
+          const dinoTop = this.dinoPos.y + (this.isDucking ? this.dinoSize.height * 0.7 : this.dinoSize.height);
+          const dinoBottom = this.dinoPos.y;
+          
+          const objLeft = obj.x;
+          const objRight = obj.x + obj.width;
+          const objTop = obj.y + obj.height;
+          const objBottom = obj.y;
+          
+          return (
+            dinoRight > objLeft + 5 &&
+            dinoLeft < objRight - 5 &&
+            dinoTop > objBottom + 5 &&
+            dinoBottom < objTop - 5
+          );
+        },
+        
+        gameOver: function() {
+          this.state = GAME_STATE.GAME_OVER;
+          this.running = false;
+          
+          // Update high score
+          const finalScore = Math.floor(this.score / 10);
+          if (finalScore > this.highScore) {
+            this.highScore = finalScore;
+            localStorage.setItem('highScore', this.highScore);
+            this.highScoreDisplay.textContent = this.highScore;
+          }
+          
+          // Display game over screen
+          this.finalScoreDisplay.textContent = finalScore;
+          this.gameOverScreen.style.display = 'flex';
+          
+          // Check for achievements
+          this.checkAchievements(finalScore);
+          
+          // Bot learning if in training mode
+          if (this.mode === 'training') {
+            this.botLearn();
+          }
+        },
+        
+        handleKeyDown: function(event) {
+          if (this.state !== GAME_STATE.PLAYING) return;
+          
+          if ((event.code === 'Space' || event.code === 'ArrowUp') && !this.isJumping && !this.isDucking) {
+            this.jump();
+          } else if (event.code === 'ArrowDown') {
+            if (this.isJumping) {
+              // Accelerate downward
+              this.jumpVelocity = -5;
+            } else {
+              this.duck();
+            }
+          }
+        },
+        
+        handleKeyUp: function(event) {
+          if (event.code === 'ArrowDown' && this.isDucking) {
+            this.isDucking = false;
+          }
+        },
+        
+        jump: function() {
+          this.isJumping = true;
+          this.jumpVelocity = 15;
+          this.dino.classList.add('jumping');
+          
+          // Remove jumping class after animation
+          setTimeout(() => {
+            this.dino.classList.remove('jumping');
+          }, 500);
+        },
+        
+        duck: function() {
+          this.isDucking = true;
+        },
+        
+        initBot: function() {
+          // Initialize bot AI
+          this.bot = {
+            brain: {
+              // Simple decision parameters
+              jumpThreshold: 100, // Distance to obstacle before jumping
+              duckThreshold: 80, // Distance to high obstacle before ducking
+              learningRate: 0.01,
+              iterations: 0
+            },
+            stats: {
+              avgScore: 0,
+              highScore: 0,
+              gamesPlayed: 0
+            }
+          };
+          
+          this.debugInfo = {
+            nearestObstacle: null,
+            distanceToObstacle: 0,
+            obstacleType: '',
+            obstacleHeight: 0,
+            decision: 'waiting',
+            confidence: 0
+          };
+          
+          this.botStatus.style.display = 'block';
+          
+          if (this.mode === 'training') {
+            this.debugPanel.classList.add('active');
+          }
+        },
+        
+        updateBot: function() {
+          // Find the nearest obstacle
+          let nearestObstacle = null;
+          let minDistance = Infinity;
+          
+          for (const obstacle of this.objects) {
+            const distance = obstacle.x - (this.dinoPos.x + this.dinoSize.width);
+            if (distance > 0 && distance < minDistance) {
+              minDistance = distance;
+              nearestObstacle = obstacle;
+            }
+          }
+          
+          this.debugInfo.nearestObstacle = nearestObstacle;
+          this.debugInfo.distanceToObstacle = minDistance;
+          
+          if (nearestObstacle) {
+            this.debugInfo.obstacleType = nearestObstacle.type;
+            this.debugInfo.obstacleHeight = nearestObstacle.height;
+            
+            // Simple decision-making
+            if (nearestObstacle.type === 'cactus' && minDistance < this.bot.brain.jumpThreshold) {
+              this.jump();
+              this.debugInfo.decision = 'jump';
+              this.debugInfo.confidence = (this.bot.brain.jumpThreshold - minDistance) / this.bot.brain.jumpThreshold;
+            } else if (nearestObstacle.type === 'bird') {
+              if (nearestObstacle.y > this.groundLevel + 40 && minDistance < this.bot.brain.duckThreshold) {
+                this.duck();
+                this.debugInfo.decision = 'duck';
+                this.debugInfo.confidence = (this.bot.brain.duckThreshold - minDistance) / this.bot.brain.duckThreshold;
+              } else if (minDistance < this.bot.brain.jumpThreshold) {
+                this.jump();
+                this.debugInfo.decision = 'jump';
+                this.debugInfo.confidence = (this.bot.brain.jumpThreshold - minDistance) / this.bot.brain.jumpThreshold;
+              }
+            }
+          } else {
+            this.debugInfo.obstacleType = 'none';
+            this.debugInfo.decision = 'run';
+            this.debugInfo.confidence = 1.0;
+          }
+        },
+        
+        renderDebugInfo: function() {
+          if (!this.debugPanel.classList.contains('active')) return;
+          
+          let debugHtml = '<h4>Bot Debug Info</h4>';
+          debugHtml += `<p>Game Speed: ${this.speed.toFixed(1)}</p>`;
+          debugHtml += `<p>Next Obstacle: ${this.debugInfo.obstacleType || 'none'}</p>`;
+          debugHtml += `<p>Distance: ${Math.floor(this.debugInfo.distanceToObstacle)}</p>`;
+          debugHtml += `<p>Decision: ${this.debugInfo.decision}</p>`;
+          debugHtml += `<p>Confidence: ${Math.floor(this.debugInfo.confidence * 100)}%</p>`;
+          
+          if (this.mode === 'training') {
+            debugHtml += `<p>Generation: ${this.bot.brain.iterations}</p>`;
+            debugHtml += `<p>Jump Threshold: ${Math.floor(this.bot.brain.jumpThreshold)}</p>`;
+            debugHtml += `<p>Duck Threshold: ${Math.floor(this.bot.brain.duckThreshold)}</p>`;
+          }
+          
+          this.debugPanel.innerHTML = debugHtml;
+          
+          // Update bot status display
+          const statusText = `Bot: ${this.debugInfo.decision.toUpperCase()}`;
+          this.botStatus.textContent = statusText;
+          this.botStatus.classList.toggle('active', this.debugInfo.decision !== 'run');
+          
+          // Visualize neural paths if applicable
+          const neuralPath = document.querySelector('.neural-path');
+          if (neuralPath && this.debugInfo.nearestObstacle) {
+            neuralPath.style.display = 'block';
+            neuralPath.style.width = `${this.debugInfo.distanceToObstacle}px`;
+            neuralPath.style.opacity = this.debugInfo.confidence.toString();
+          } else if (neuralPath) {
+            neuralPath.style.display = 'none';
+          }
+        },
+        
+        botLearn: function() {
+          // Simple learning algorithm
+          this.bot.stats.gamesPlayed++;
+          const score = Math.floor(this.score / 10);
+          this.bot.stats.avgScore = (this.bot.stats.avgScore * (this.bot.stats.gamesPlayed - 1) + score) / this.bot.stats.gamesPlayed;
+          
+          if (score > this.bot.stats.highScore) {
+            this.bot.stats.highScore = score;
+          }
+          
+          // Adjust parameters based on performance
+          if (score < 300) {
+            // Bot died early, adjust parameters
+            this.bot.brain.jumpThreshold += 5 * this.bot.brain.learningRate;
+            this.bot.brain.duckThreshold += 3 * this.bot.brain.learningRate;
+          } else {
+            // Bot did well, make smaller adjustments
+            this.bot.brain.jumpThreshold -= 2 * this.bot.brain.learningRate;
+            this.bot.brain.duckThreshold -= 1 * this.bot.brain.learningRate;
+          }
+          
+          // Ensure thresholds stay in reasonable range
+          this.bot.brain.jumpThreshold = Math.max(50, Math.min(200, this.bot.brain.jumpThreshold));
+          this.bot.brain.duckThreshold = Math.max(40, Math.min(150, this.bot.brain.duckThreshold));
+          
+          this.bot.brain.iterations++;
+          
+          // Restart training automatically
+          if (this.mode === 'training') {
+            setTimeout(() => {
+              restartGame();
+            }, 1000);
+          }
+        },
+        
+        checkAchievements: function(score) {
+          // Check for unlocked achievements
+          if (score >= 100) {
+            document.getElementById('achievement-beginner').classList.add('unlocked');
+          }
+          if (score >= 500) {
+            document.getElementById('achievement-intermediate').classList.add('unlocked');
+          }
+          if (score >= 1000) {
+            document.getElementById('achievement-expert').classList.add('unlocked');
+          }
+          if (score >= 2000) {
+            document.getElementById('achievement-master').classList.add('unlocked');
+          }
+        }
+      };
+
+      function startGame(mode) {
+        game.mode = mode || 'play';
+        game.init();
+        game.start();
+      }
+
+      function stopGame() {
+        game.stop();
+      }
+
+      function restartGame() {
+        game.stop();
+        game.init();
+        game.start();
+      }
+
+      // Check for stored achievements
+      function loadAchievements() {
+        const achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
+        
+        if (achievements.beginner) {
+          document.getElementById('achievement-beginner').classList.add('unlocked');
+        }
+        if (achievements.intermediate) {
+          document.getElementById('achievement-intermediate').classList.add('unlocked');
+        }
+        if (achievements.expert) {
+          document.getElementById('achievement-expert').classList.add('unlocked');
+        }
+        if (achievements.master) {
+          document.getElementById('achievement-master').classList.add('unlocked');
+        }
+      }
+
+      loadAchievements();
+    });
+  </script>
+</body>
+</html>

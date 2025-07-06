@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Dinosaur Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f7f7f7;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .game-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .game-canvas {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            background: #f7f7f7;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .score {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .restart-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .restart-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-title">🦖 Chrome Dinosaur Game</div>
+        <canvas id="gameCanvas" class="game-canvas" width="800" height="300"></canvas>
+        <div class="score" id="score">Score: 0</div>
+        <div class="controls">
+            Press SPACE or ↑ to jump • Press ↓ to duck
+        </div>
+        <div class="game-over" id="gameOver">
+            <h2>Game Over!</h2>
+            <p id="finalScore">Final Score: 0</p>
+            <button class="restart-btn" onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        // Game state
+        let score = 0;
+        let highScore = 0;
+        let gameRunning = false;
+        let gameOver = false;
+        let dinoY = 0;
+        let dinoVelocity = 0;
+        let dinoState = 'running'; // running, jumping, ducking, dead
+        let isDucking = false;
+        let obstacles = [];
+        let clouds = [];
+        let groundX = 0;
+        let animationFrame = 0;
+
+        // Game constants
+        const GRAVITY = 0.6;
+        const JUMP_STRENGTH = -15;
+        const GROUND_Y = 0;
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 300;
+        const DINO_WIDTH = 60;
+        const DINO_HEIGHT = 60;
+
+        // Load images
+        const images = {};
+        const imageList = {
+            dinoRun1: 'Assets/Dino/DinoRun1.png',
+            dinoRun2: 'Assets/Dino/DinoRun2.png',
+            dinoJump: 'Assets/Dino/DinoJump.png',
+            dinoDuck1: 'Assets/Dino/DinoDuck1.png',
+            dinoDuck2: 'Assets/Dino/DinoDuck2.png',
+            dinoDead: 'Assets/Dino/DinoDead.png',
+            smallCactus1: 'Assets/Cactus/SmallCactus1.png',
+            smallCactus2: 'Assets/Cactus/SmallCactus2.png',
+            smallCactus3: 'Assets/Cactus/SmallCactus3.png',
+            largeCactus1: 'Assets/Cactus/LargeCactus1.png',
+            largeCactus2: 'Assets/Cactus/LargeCactus2.png',
+            largeCactus3: 'Assets/Cactus/LargeCactus3.png',
+            bird1: 'Assets/Bird/Bird1.png',
+            bird2: 'Assets/Bird/Bird2.png',
+            cloud: 'Assets/Other/Cloud.png',
+            ground: 'Assets/Other/Track.png'
+        };
+
+        // Load all images
+        let imagesLoaded = 0;
+        const totalImages = Object.keys(imageList).length;
+
+        function loadImages() {
+            Object.entries(imageList).forEach(([key, src]) => {
+                const img = new Image();
+                img.onload = () => {
+                    images[key] = img;
+                    imagesLoaded++;
+                    if (imagesLoaded === totalImages) {
+                        startGame();
+                    }
+                };
+                img.src = src;
+            });
+        }
+
+        function startGame() {
+            gameRunning = true;
+            gameOver = false;
+            score = 0;
+            dinoY = 0;
+            dinoVelocity = 0;
+            dinoState = 'running';
+            isDucking = false;
+            obstacles = [];
+            clouds = [];
+            groundX = 0;
+            animationFrame = 0;
+            gameOverElement.style.display = 'none';
+            gameLoop();
+        }
+
+        function restartGame() {
+            if (score > highScore) {
+                highScore = score;
+            }
+            startGame();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Clear canvas
+            ctx.fillStyle = '#f7f7f7';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Draw ground
+            const groundPattern = ctx.createPattern(images.ground, 'repeat');
+            ctx.fillStyle = groundPattern;
+            ctx.fillRect(groundX, CANVAS_HEIGHT - 30, CANVAS_WIDTH + 100, 30);
+
+            // Update ground position
+            groundX = (groundX - 5) % 100;
+
+            // Update dino physics
+            if (dinoState === 'jumping') {
+                dinoVelocity += GRAVITY;
+                dinoY += dinoVelocity;
+                if (dinoY >= GROUND_Y) {
+                    dinoState = 'running';
+                    dinoVelocity = 0;
+                    dinoY = GROUND_Y;
+                }
+            }
+
+            // Draw dino
+            let dinoImage = images.dinoRun1;
+            if (dinoState === 'dead') {
+                dinoImage = images.dinoDead;
+            } else if (dinoState === 'jumping') {
+                dinoImage = images.dinoJump;
+            } else if (isDucking) {
+                dinoImage = animationFrame % 20 < 10 ? images.dinoDuck1 : images.dinoDuck2;
+            } else {
+                dinoImage = animationFrame % 20 < 10 ? images.dinoRun1 : images.dinoRun2;
+            }
+
+            const dinoX = 50;
+            const dinoYPos = CANVAS_HEIGHT - 90 + dinoY;
+            const dinoHeight = isDucking ? 30 : DINO_HEIGHT;
+            
+            ctx.drawImage(dinoImage, dinoX, dinoYPos, DINO_WIDTH, dinoHeight);
+
+            // Update and draw obstacles
+            obstacles = obstacles
+                .map(obs => ({ ...obs, x: obs.x - 5 }))
+                .filter(obs => obs.x > -100);
+
+            // Spawn new obstacles
+            if (Math.random() < 0.02) {
+                const isBird = Math.random() < 0.3;
+                
+                if (isBird) {
+                    obstacles.push({
+                        x: CANVAS_WIDTH,
+                        y: CANVAS_HEIGHT - 120,
+                        width: 60,
+                        height: 40,
+                        type: 'bird',
+                        animationFrame: 0
+                    });
+                } else {
+                    const cactusTypes = [images.smallCactus1, images.smallCactus2, images.smallCactus3, 
+                                       images.largeCactus1, images.largeCactus2, images.largeCactus3];
+                    const cactusImage = cactusTypes[Math.floor(Math.random() * cactusTypes.length)];
+                    obstacles.push({
+                        x: CANVAS_WIDTH,
+                        y: CANVAS_HEIGHT - 90,
+                        width: 30,
+                        height: 60,
+                        type: 'cactus',
+                        image: cactusImage
+                    });
+                }
+            }
+
+            // Draw obstacles
+            obstacles.forEach(obs => {
+                if (obs.type === 'bird') {
+                    const birdImage = obs.animationFrame % 20 < 10 ? images.bird1 : images.bird2;
+                    ctx.drawImage(birdImage, obs.x, obs.y, obs.width, obs.height);
+                    obs.animationFrame++;
+                } else {
+                    ctx.drawImage(obs.image, obs.x, obs.y, obs.width, obs.height);
+                }
+            });
+
+            // Update and draw clouds
+            clouds = clouds
+                .map(cloud => ({ ...cloud, x: cloud.x - 1 }))
+                .filter(cloud => cloud.x > -100);
+
+            if (Math.random() < 0.005) {
+                clouds.push({
+                    x: CANVAS_WIDTH,
+                    y: Math.random() * 100 + 50,
+                    width: 80,
+                    height: 40
+                });
+            }
+
+            // Draw clouds
+            clouds.forEach(cloud => {
+                ctx.drawImage(images.cloud, cloud.x, cloud.y, cloud.width, cloud.height);
+            });
+
+            // Check collisions
+            const dinoRect = { 
+                x: 50, 
+                y: CANVAS_HEIGHT - 90 + dinoY, 
+                width: DINO_WIDTH, 
+                height: isDucking ? 30 : DINO_HEIGHT 
+            };
+            
+            const collision = obstacles.some(obs => 
+                dinoRect.x < obs.x + obs.width &&
+                dinoRect.x + dinoRect.width > obs.x &&
+                dinoRect.y < obs.y + obs.height &&
+                dinoRect.y + dinoRect.height > obs.y
+            );
+
+            if (collision && dinoState !== 'dead') {
+                dinoState = 'dead';
+                gameOver = true;
+                gameRunning = false;
+                finalScoreElement.textContent = `Final Score: ${score}`;
+                gameOverElement.style.display = 'block';
+                return;
+            }
+
+            // Update score
+            if (!gameOver && dinoState !== 'dead') {
+                score++;
+                scoreElement.textContent = `Score: ${score}`;
+            }
+
+            // Update animation frame
+            animationFrame++;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleJump() {
+            if (dinoState === 'running' && !gameOver) {
+                dinoState = 'jumping';
+                dinoVelocity = JUMP_STRENGTH;
+            }
+        }
+
+        function handleDuck(isDucking) {
+            if (dinoState === 'running' && !gameOver) {
+                this.isDucking = isDucking;
+            }
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                handleJump();
+            } else if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                isDucking = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                isDucking = false;
+            }
+        });
+
+        // Start loading images when page loads
+        window.addEventListener('load', loadImages);
+    </script>
+</body>
+</html> 

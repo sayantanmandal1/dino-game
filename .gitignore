@@ -9,6 +9,7 @@ yarn.lock
 backend/__pycache__
 backend/venv/
 backend\venv
+
 __pycache__/
 *.py[cod]
 *$py.class

@@ -1,454 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
-  Box,
-  Typography,
-  Button,
-  Card,
-  CardContent,
-  Grid,
-  Slider,
-  TextField,
-  Chip,
-  LinearProgress,
-  Alert,
-  IconButton,
-  Tooltip,
+  Box, Typography, Paper, Stack, Grid, Slider, TextField, Button, Chip, Alert, Divider,
 } from '@mui/material';
-import {
-  PlayArrow,
-  Stop,
-  Refresh,
-  Settings,
-  TrendingUp,
-  Psychology,
-} from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
+import DownloadIcon from '@mui/icons-material/Download';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import HubIcon from '@mui/icons-material/Hub';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import DinoCanvas from '../components/DinoCanvas';
+import { useTrainingSocket } from '../hooks/useTrainingSocket';
+import { useAiAutopilot } from '../hooks/useAiAutopilot';
+import { api, apiBase } from '../api/client';
 
-const TrainModel = () => {
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainingConfig, setTrainingConfig] = useState({
-    population_size: 50,
-    fitness_threshold: 1000,
-    max_generations: 100,
-    mutation_rate: 0.8,
-    crossover_rate: 0.7,
-  });
-  const [trainingStats, setTrainingStats] = useState([]);
-  const [currentGeneration, setCurrentGeneration] = useState(0);
-  const [bestFitness, setBestFitness] = useState(0);
-  const [avgFitness, setAvgFitness] = useState(0);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+// Six local population-preview canvases run in parallel so the user sees the "swarm" training.
+// Their seeds differ; they restart automatically on crash for the visual effect.
+function PopulationPreview({ aiModelId }) {
+  const refs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+  const { connected, decide } = useAiAutopilot(aiModelId || null);
 
-  // Mock training data for demonstration
   useEffect(() => {
-    if (isTraining) {
-      const interval = setInterval(() => {
-        setCurrentGeneration(prev => prev + 1);
-        setBestFitness(prev => prev + Math.random() * 50);
-        setAvgFitness(prev => prev + Math.random() * 30);
-        
-        setTrainingStats(prev => [
-          ...prev,
-          {
-            generation: currentGeneration + 1,
-            bestFitness: bestFitness + Math.random() * 50,
-            avgFitness: avgFitness + Math.random() * 30,
-            diversity: Math.random() * 20 + 5,
-          }
-        ]);
-      }, 1000);
+    const timers = [];
+    refs.forEach((r, i) => {
+      const start = () => {
+        const eng = r.current; if (!eng) return;
+        eng.reset(1000 + i * 37); eng.start();
+        // Install a heuristic autopilot so the dinos visibly jump (fake "evolving"
+        // population). Each dino gets a different reaction distance + duck bias
+        // so they die at different times; this is replaced by the real NN once
+        // training finishes (see second effect).
+        if (!aiModelId) {
+          const threshold = 0.18 + (i / refs.length) * 0.22; // 0.18 .. 0.40
+          const duckBias = (i % 3 === 2); // two of the six also duck
+          const pilot = (sensors) => {
+            // sensors: [dist, ow, oh, oy, speed, dinoY] all in [0,1]
+            const [dist, , oh, oy] = sensors;
+            const isHighBird = duckBias && oy < 0.55 && oh < 0.3;
+            if (isHighBird && dist < 0.30) return 'duck';
+            if (dist < threshold) return 'jump';
+            return 'noop';
+          };
+          const eng2 = r.current;
+          if (eng2) eng2.setAutopilot(pilot);
+        }
+      };
+      // Stagger start
+      const t = setTimeout(start, 120 * i);
+      timers.push(t);
+      const unsub = r.current && r.current.onUpdate((s) => {
+        if (s.gameOver) {
+          // auto-restart with a fresh seed for variety
+          const t2 = setTimeout(() => {
+            const eng = r.current; if (!eng) return;
+            eng.reset(Math.floor(Math.random() * 1e6));
+            eng.start();
+          }, 450);
+          timers.push(t2);
+        }
+      });
+      if (unsub) timers.push({ _unsub: unsub });
+    });
+    return () => {
+      timers.forEach((t) => {
+        if (t && t._unsub) t._unsub();
+        else clearTimeout(t);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-      return () => clearInterval(interval);
-    }
-  }, [isTraining, currentGeneration, bestFitness, avgFitness]);
-
-  const handleStartTraining = async () => {
-    setIsTraining(true);
-    setCurrentGeneration(0);
-    setBestFitness(0);
-    setAvgFitness(0);
-    setTrainingStats([]);
-    
-    // TODO: Call backend API to start training
-    console.log('Starting training with config:', trainingConfig);
-  };
-
-  const handleStopTraining = async () => {
-    setIsTraining(false);
-    // TODO: Call backend API to stop training
-    console.log('Stopping training');
-  };
-
-  const handleResetTraining = () => {
-    setIsTraining(false);
-    setCurrentGeneration(0);
-    setBestFitness(0);
-    setAvgFitness(0);
-    setTrainingStats([]);
-  };
-
-  const handleConfigChange = (field, value) => {
-    setTrainingConfig(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  useEffect(() => {
+    refs.forEach((r) => {
+      const eng = r.current; if (!eng) return;
+      if (aiModelId && connected) eng.setAutopilot(decide);
+      // when model disconnects or clears, fall back to idle noop (no autopilot)
+    });
+  }, [aiModelId, connected, decide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <Typography variant="h2" sx={{ mb: 4, fontWeight: 700 }}>
-          🧠 Train AI Model
-        </Typography>
-      </motion.div>
-
-      <Grid container spacing={4}>
-        {/* Training Controls */}
-        <Grid xs={12} md={4}>
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-                  Training Controls
-                </Typography>
-                
-                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                  <Button
-                    variant="contained"
-                    startIcon={<PlayArrow />}
-                    onClick={handleStartTraining}
-                    disabled={isTraining}
-                    sx={{
-                      background: 'linear-gradient(45deg, #00ff88, #00d4ff)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #00d4ff, #00ff88)',
-                      },
-                    }}
-                  >
-                    Start
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<Stop />}
-                    onClick={handleStopTraining}
-                    disabled={!isTraining}
-                  >
-                    Stop
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Refresh />}
-                    onClick={handleResetTraining}
-                    disabled={isTraining}
-                  >
-                    Reset
-                  </Button>
-                </Box>
-
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Training Status
-                  </Typography>
-                  <Chip
-                    label={isTraining ? 'Training Active' : 'Ready'}
-                    color={isTraining ? 'success' : 'default'}
-                    icon={isTraining ? <TrendingUp /> : <Psychology />}
-                  />
-                </Box>
-
-                {isTraining && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Progress
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={(currentGeneration / trainingConfig.max_generations) * 100}
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        '& .MuiLinearProgress-bar': {
-                          background: 'linear-gradient(45deg, #00d4ff, #00ff88)',
-                        },
-                      }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      Generation {currentGeneration} / {trainingConfig.max_generations}
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Configuration */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                    Configuration
-                  </Typography>
-                  <Tooltip title="Advanced Settings">
-                    <IconButton
-                      onClick={() => setShowAdvanced(!showAdvanced)}
-                      sx={{ ml: 'auto' }}
-                    >
-                      <Settings />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-
-                <Grid container spacing={2}>
-                  <Grid xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Population Size"
-                      type="number"
-                      value={trainingConfig.population_size}
-                      onChange={(e) => handleConfigChange('population_size', parseInt(e.target.value))}
-                      disabled={isTraining}
-                    />
-                  </Grid>
-                  
-                  <Grid xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Fitness Threshold"
-                      type="number"
-                      value={trainingConfig.fitness_threshold}
-                      onChange={(e) => handleConfigChange('fitness_threshold', parseInt(e.target.value))}
-                      disabled={isTraining}
-                    />
-                  </Grid>
-                  
-                  <Grid xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Max Generations"
-                      type="number"
-                      value={trainingConfig.max_generations}
-                      onChange={(e) => handleConfigChange('max_generations', parseInt(e.target.value))}
-                      disabled={isTraining}
-                    />
-                  </Grid>
-
-                  {showAdvanced && (
-                    <>
-                      <Grid xs={12}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          Mutation Rate: {trainingConfig.mutation_rate}
-                        </Typography>
-                        <Slider
-                          value={trainingConfig.mutation_rate}
-                          onChange={(e, value) => handleConfigChange('mutation_rate', value)}
-                          min={0}
-                          max={1}
-                          step={0.1}
-                          disabled={isTraining}
-                          sx={{
-                            '& .MuiSlider-thumb': {
-                              background: 'linear-gradient(45deg, #00d4ff, #ff6b35)',
-                            },
-                            '& .MuiSlider-track': {
-                              background: 'linear-gradient(45deg, #00d4ff, #ff6b35)',
-                            },
-                          }}
-                        />
-                      </Grid>
-                      
-                      <Grid xs={12}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          Crossover Rate: {trainingConfig.crossover_rate}
-                        </Typography>
-                        <Slider
-                          value={trainingConfig.crossover_rate}
-                          onChange={(e, value) => handleConfigChange('crossover_rate', value)}
-                          min={0}
-                          max={1}
-                          step={0.1}
-                          disabled={isTraining}
-                          sx={{
-                            '& .MuiSlider-thumb': {
-                              background: 'linear-gradient(45deg, #00ff88, #00d4ff)',
-                            },
-                            '& .MuiSlider-track': {
-                              background: 'linear-gradient(45deg, #00ff88, #00d4ff)',
-                            },
-                          }}
-                        />
-                      </Grid>
-                    </>
-                  )}
-                </Grid>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-
-        {/* Training Visualization */}
-        <Grid xs={12} md={8}>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-                  Training Progress
-                </Typography>
-                
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={trainingStats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
-                    <XAxis 
-                      dataKey="generation" 
-                      stroke="rgba(255, 255, 255, 0.7)"
-                      label={{ value: 'Generation', position: 'insideBottom', offset: -10 }}
-                    />
-                    <YAxis stroke="rgba(255, 255, 255, 0.7)" />
-                    <RechartsTooltip 
-                      contentStyle={{
-                        background: 'rgba(26, 26, 26, 0.9)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: 8,
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="bestFitness"
-                      stroke="#00d4ff"
-                      strokeWidth={3}
-                      dot={{ fill: '#00d4ff', strokeWidth: 2, r: 4 }}
-                      name="Best Fitness"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="avgFitness"
-                      stroke="#ff6b35"
-                      strokeWidth={2}
-                      dot={{ fill: '#ff6b35', strokeWidth: 2, r: 3 }}
-                      name="Average Fitness"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Current Stats */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-          >
-            <Grid container spacing={2}>
-              <Grid xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ color: '#00d4ff', fontWeight: 700 }}>
-                      {currentGeneration}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Current Generation
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ color: '#00ff88', fontWeight: 700 }}>
-                      {Math.round(bestFitness)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Best Fitness
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ color: '#ff6b35', fontWeight: 700 }}>
-                      {Math.round(avgFitness)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Average Fitness
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ color: '#ffaa00', fontWeight: 700 }}>
-                      {trainingStats.length > 0 ? Math.round(trainingStats[trainingStats.length - 1]?.diversity || 0) : 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Diversity
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </motion.div>
-        </Grid>
-      </Grid>
-
-      {/* Training Log */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 1 }}
-      >
-        <Card sx={{ mt: 4 }}>
-          <CardContent>
-            <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-              Training Log
-            </Typography>
-            
-            <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-              {trainingStats.length === 0 ? (
-                <Alert severity="info">
-                  No training data available. Start training to see progress.
-                </Alert>
-              ) : (
-                trainingStats.slice(-10).map((stat, index) => (
-                  <Box key={index} sx={{ mb: 1, p: 1, borderRadius: 1, bgcolor: 'rgba(255, 255, 255, 0.05)' }}>
-                    <Typography variant="body2">
-                      Generation {stat.generation}: Best Fitness = {Math.round(stat.bestFitness)}, 
-                      Avg Fitness = {Math.round(stat.avgFitness)}, 
-                      Diversity = {Math.round(stat.diversity)}
-                    </Typography>
-                  </Box>
-                ))
-              )}
+      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
+        <Typography variant="subtitle2">Population preview</Typography>
+        {aiModelId && (
+          <Chip size="small" color={connected ? 'success' : 'default'}
+            label={connected ? `AI ${aiModelId.slice(0, 6)}` : 'connecting...'} />
+        )}
+      </Stack>
+      <Grid container spacing={1}>
+        {refs.map((r, i) => (
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <DinoCanvas ref={r} scale={1} disableInput width={600} height={150} />
             </Box>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
-};
+}
 
-export default TrainModel; 
+export default function TrainModel() {
+  const [populationSize, setPopulationSize] = useState(150);
+  const [maxGenerations, setMaxGenerations] = useState(50);
+  const [mutationRate, setMutationRate] = useState(0.8);
+  const [survivalThreshold, setSurvivalThreshold] = useState(0.2);
+  const [compatibilityThreshold, setCompatibilityThreshold] = useState(3.0);
+  const [runName, setRunName] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState('');
+  const [finishedModelId, setFinishedModelId] = useState(null);
+
+  const { connected, status, history, events } = useTrainingSocket(true);
+
+  // Detect finished event from the event stream
+  useEffect(() => {
+    const last = events[events.length - 1];
+    if (last && (last.type === 'finished' || last.type === 'stopped') && last.model_id) {
+      setFinishedModelId(last.model_id);
+      setOk(`Training complete. Saved model ${last.model_id.slice(0, 8)}`);
+    }
+  }, [events]);
+
+  const chartData = useMemo(() => history.map((h, i) => ({
+    gen: h.generation ?? i,
+    best: Number(h.best_fitness ?? 0),
+    mean: Number(h.mean_fitness ?? 0),
+  })), [history]);
+
+  const start = async () => {
+    setErr(''); setOk(''); setSubmitting(true); setFinishedModelId(null);
+    try {
+      await api('/api/training/start', {
+        method: 'POST',
+        body: {
+          run_name: runName || `run-${new Date().toISOString().replace(/[:.]/g, '-')}`,
+          population_size: populationSize,
+          max_generations: maxGenerations,
+          mutation_rate: mutationRate,
+          survival_threshold: survivalThreshold,
+          compatibility_threshold: compatibilityThreshold,
+        },
+      });
+      setOk('Training started');
+    } catch (e) { setErr(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const stop = async () => {
+    try { await api('/api/training/stop', { method: 'POST' }); }
+    catch (e) { setErr(e.message); }
+  };
+
+  const isRunning = status && (status.type === 'start' || status.type === 'generation');
+  const latest = history[history.length - 1];
+  const bestFit = latest ? Number(latest.best_fitness || 0).toFixed(2) : '-';
+  const meanFit = latest ? Number(latest.mean_fitness || 0).toFixed(2) : '-';
+
+  return (
+    <Box>
+      <Typography variant="h3" sx={{ mb: 2 }}>Train</Typography>
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Hyperparameters</Typography>
+
+            <TextField fullWidth size="small" label="Run name" value={runName}
+              onChange={(e) => setRunName(e.target.value)} sx={{ mb: 2 }} placeholder="auto-generated" />
+
+            <Typography gutterBottom>Population: {populationSize}</Typography>
+            <Slider min={20} max={500} step={10} value={populationSize} onChange={(_, v) => setPopulationSize(v)} />
+
+            <Typography gutterBottom>Generations: {maxGenerations}</Typography>
+            <Slider min={5} max={300} step={5} value={maxGenerations} onChange={(_, v) => setMaxGenerations(v)} />
+
+            <Typography gutterBottom>Mutation rate: {mutationRate.toFixed(2)}</Typography>
+            <Slider min={0.1} max={1.0} step={0.05} value={mutationRate} onChange={(_, v) => setMutationRate(v)} />
+
+            <Typography gutterBottom>Survival threshold: {survivalThreshold.toFixed(2)}</Typography>
+            <Slider min={0.05} max={0.6} step={0.05} value={survivalThreshold} onChange={(_, v) => setSurvivalThreshold(v)} />
+
+            <Typography gutterBottom>Compatibility: {compatibilityThreshold.toFixed(1)}</Typography>
+            <Slider min={0.5} max={6.0} step={0.1} value={compatibilityThreshold} onChange={(_, v) => setCompatibilityThreshold(v)} />
+
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={start}
+                disabled={submitting || isRunning}>Start</Button>
+              <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={stop}
+                disabled={!isRunning}>Stop</Button>
+            </Stack>
+            {err && <Alert severity="error" sx={{ mt: 2 }}>{err}</Alert>}
+            {ok && <Alert severity="success" sx={{ mt: 2 }}>{ok}</Alert>}
+
+            {finishedModelId && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Latest model</Typography>
+                <Stack direction="column" spacing={1}>
+                  <Button size="small" variant="contained" startIcon={<DownloadIcon />}
+                    href={`${apiBase()}/api/models/${finishedModelId}/download`}
+                    component="a">Download .pkl</Button>
+                  <Button size="small" variant="outlined" startIcon={<SportsEsportsIcon />}
+                    component={RouterLink} to={`/play?model=${finishedModelId}`}>Play with it</Button>
+                  <Button size="small" variant="outlined" startIcon={<HubIcon />}
+                    component={RouterLink} to={`/visualize?model=${finishedModelId}`}>Visualize</Button>
+                  <Button size="small" variant="text" component={RouterLink} to="/models">All saved models -&gt;</Button>
+                </Stack>
+              </>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Paper sx={{ p: 3, mb: 2 }}>
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" alignItems="center">
+              <Chip label={isRunning ? 'Training' : (status?.type || 'idle')}
+                color={isRunning ? 'primary' : 'default'} />
+              <Chip label={connected ? 'WS connected' : 'WS disconnected'}
+                color={connected ? 'success' : 'default'} size="small" />
+              <Chip label={`${history.length} gens`} variant="outlined" size="small" />
+              <Chip label={`best ${bestFit}`} variant="outlined" size="small" />
+              <Chip label={`mean ${meanFit}`} variant="outlined" size="small" />
+              {latest && latest.species_count != null && (
+                <Chip label={`${latest.species_count} species`} variant="outlined" size="small" />
+              )}
+            </Stack>
+
+            <Typography variant="h6" sx={{ mb: 1 }}>Fitness over generations</Typography>
+            <Box sx={{ width: '100%', height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="gen" stroke="#aaa" />
+                  <YAxis stroke="#aaa" />
+                  <Tooltip contentStyle={{ background: '#0a0e27', border: '1px solid #333' }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="best" stroke="#00d4ff" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="mean" stroke="#ff6b35" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </Paper>
+
+          <Paper sx={{ p: 2 }}>
+            <PopulationPreview aiModelId={finishedModelId} />
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+}

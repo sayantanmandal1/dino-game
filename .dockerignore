@@ -1,0 +1,16 @@
+# Avoid copying unnecessary files into build contexts.
+node_modules
+build
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+data
+.env
+.env.local
+.git
+.github
+tests
+playwright-report
+test-results

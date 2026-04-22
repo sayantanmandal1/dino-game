@@ -1,3 +1,162 @@
+# 🦖 Dino AI Trainer
+
+A **pixel-accurate Chrome offline dino game** paired with a **real NEAT (NeuroEvolution of Augmenting Topologies) training backend**. Train a neural network over generations in the browser, watch it learn to dodge cacti and pterodactyls, then hand it the controls and race it against a human on the leaderboard.
+
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green)
+![React](https://img.shields.io/badge/React-19-blue)
+![NEAT](https://img.shields.io/badge/NEAT-Python-orange)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+
+---
+
+## ✨ Features
+
+- **Pixel-perfect Chrome dino replica** — official Chromium sprite sheet, canonical physics constants, day/night cycle, pterodactyls after score 450, 100-point milestone flash, procedural Web Audio sound.
+- **Real NEAT training** — parallel headless fitness evaluation (`ParallelEvaluator`), live WebSocket progress stream, speciation, elitism, reproducible runs via seeded RNG.
+- **AI autopilot** — a trained genome plays the game in your browser via a per-frame inference WebSocket.
+- **Model registry** — SQLite-backed metadata + versioned pickle files on a Docker volume. Upload / download / delete / test.
+- **Genome visualizer** — interactive SVG graph of inputs → hidden → outputs with weight polarity and magnitude.
+- **Leaderboard** — separate ranks for human and AI play, persists across container restarts.
+- **One-command bring-up** — `docker compose up` starts the full stack behind an nginx reverse proxy.
+
+---
+
+## 🚀 Quick start
+
+```bash
+git clone <this repo>
+cd dino-game
+cp .env.example .env   # optional; defaults work
+docker compose up -d --build
+```
+
+Open **http://localhost:3000**. Done.
+
+First container start runs DB migrations automatically; models and the leaderboard persist in the `dino-data` Docker volume.
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────────┐      ┌──────────────────────────────┐
+│  React 19 + MUI 7        │      │  FastAPI + SQLAlchemy async  │
+│  Canvas 2D game engine   │◄────►│  neat-python trainer         │
+│  WebSocket: /ws/training │  WS  │  ParallelEvaluator workers   │
+│  WebSocket: /ws/play     │  +   │  Headless deterministic sim  │
+│  REST: /api/*            │ REST │  SQLite + pickle volume      │
+└──────────────────────────┘      └──────────────────────────────┘
+       nginx :3000                        uvicorn :8000
+         (reverse proxy /api + /ws → backend)
+```
+
+Canonical physics constants live in **two places that must agree**:
+
+- `backend/app/physics.py` — used by the headless simulator during NEAT fitness evaluation.
+- `frontend/src/game/physics.js` — used by the in-browser game engine.
+
+Any change to gravity, jump velocity, spawn gaps, etc. **must be mirrored** in both files so training transfers to the browser.
+
+---
+
+## 🗂️ Layout
+
+```
+dino-game/
+├── docker-compose.yml
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app/
+│       ├── main.py        app entry + lifespan
+│       ├── physics.py     canonical constants
+│       ├── simulator.py   headless dino sim
+│       ├── neat/          config.ini, trainer, inference
+│       ├── routers/       health, training, inference, models, leaderboard
+│       └── services/      training_manager, model_store
+├── frontend/
+│   ├── Dockerfile         multi-stage → nginx
+│   ├── nginx.conf         SPA fallback + /api /ws proxy
+│   └── src/
+│       ├── game/          GameEngine, entities, sprites, sound, input, physics
+│       ├── components/    DinoCanvas, NetworkGraph, Layout, ErrorBoundary
+│       ├── pages/         Home, PlayGame, TrainModel, VisualizeModel,
+│       │                  SavedModels, Leaderboard, About
+│       ├── hooks/         useTrainingSocket, useAiAutopilot
+│       └── api/           client (REST), ws (WebSocket helper)
+├── tests/                 Playwright E2E suite
+└── .github/workflows/ci.yml
+```
+
+---
+
+## 🧠 How training works
+
+1. User submits parameters from **Train Model** → `POST /api/training/start`.
+2. Backend spawns an `asyncio` task that drives `neat.Population` generation-by-generation.
+3. Each genome is evaluated against the **same headless `DinoSimulator` physics** the browser uses, across 3 seeds averaged, using `neat.ParallelEvaluator` when multiple workers are configured (`NEAT_WORKERS=auto` by default).
+4. After each generation the manager broadcasts a `TrainingUpdate` JSON event (generation, best/mean fitness, species count, elapsed) to all `/api/training/ws/training` subscribers. Clients reconnecting mid-run receive a **replay of recent events**.
+5. On completion the best genome is pickled, hashed, and stored in `data/models/{uuid}.pkl` with a `Model` row in SQLite.
+
+---
+
+## 🎮 How the AI plays
+
+1. **Play Game** opens `/api/ws/play/{model_id}`.
+2. The frontend's `GameEngine` invokes `autopilot(sensors)` each fixed-timestep step (60 Hz). The hook sends the 6-dim sensor vector over WS, and asynchronously receives actions (`jump | duck | noop`) which are cached as the current decision.
+3. If the socket drops, the browser falls back to the last action and attempts automatic reconnection with exponential backoff (`frontend/src/api/ws.js`).
+
+---
+
+## 🧪 Testing
+
+**Backend unit tests** (simulator determinism, API surface):
+
+```bash
+cd backend
+pip install -r requirements.txt
+pytest -q
+```
+
+**End-to-end tests** (against a running stack):
+
+```bash
+docker compose up -d --build
+cd tests
+npm install
+npx playwright install --with-deps chromium
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npx playwright test
+```
+
+CI runs all three jobs (backend pytest, frontend build, Dockerized E2E) on every push / PR.
+
+---
+
+## ⚙️ Environment
+
+See `.env.example`:
+
+| Var                | Default                                        | Purpose |
+|--------------------|------------------------------------------------|---------|
+| `FRONTEND_PORT`    | `3000`                                         | Host port mapped to the frontend container (nginx listens on 3000) |
+| `BACKEND_PORT`     | `8000`                                         | Host port mapped to uvicorn |
+| `NEAT_WORKERS`     | `auto`                                         | `auto` = `cpu_count - 1`; `1` forces serial (required for Windows-native dev outside Docker) |
+| `ALLOWED_ORIGINS`  | `["http://localhost:3000","http://127.0.0.1:3000"]` | JSON list for CORS |
+| `DATABASE_URL`     | `sqlite+aiosqlite:////app/data/dino.db`        | SQLAlchemy URL |
+
+---
+
+## 🖼️ Attribution
+
+Sprite assets originate from Chromium's offline dino game and are © **The Chromium Authors** (BSD-licensed). They are redistributed here unmodified for use by this project.
+
+All rendering, physics mirroring, NEAT integration, backend services, and platform tooling are original MIT-licensed code.
+
+---
+
+## 📄 License
+
+MIT.
 # 🦖 Dino AI Trainer - Advanced AI Training Platform
 
 [![React](https://img.shields.io/badge/React-19.1.0-blue.svg)](https://reactjs.org/)

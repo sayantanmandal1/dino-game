@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: dino-backend:1.0
+    container_name: dino-backend
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/dino.db
+      - DATA_DIR=/app/data
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
+      - NEAT_WORKERS=${NEAT_WORKERS:-auto}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - dino-data:/app/data
+    restart: unless-stopped
+    networks: [dino]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+    image: dino-frontend:1.0
+    container_name: dino-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
+    networks: [dino]
+
+networks:
+  dino:
+    driver: bridge
+
+volumes:
+  dino-data:

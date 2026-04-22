@@ -15,6 +15,7 @@ import { api } from '../api/client';
 export default function PlayGame() {
   const canvasRef = useRef(null);
   const [running, setRunning] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [models, setModels] = useState([]);
   const [modelId, setModelId] = useState('');
@@ -47,6 +48,7 @@ export default function PlayGame() {
     if (!eng) return undefined;
     const unsub = eng.onUpdate((s) => {
       setScore(s.score);
+      setGameOver(s.gameOver);
       if (s.gameOver) {
         setRunning(false);
         const prev = Number(localStorage.getItem('dino.hi') || 0);
@@ -64,6 +66,13 @@ export default function PlayGame() {
 
   const handleStart = () => {
     const eng = canvasRef.current; if (!eng) return;
+    // If we're starting after a crash, reset first so the engine re-initializes
+    // the dino, obstacles and score (otherwise start() on a crashed state is a no-op).
+    if (gameOver) {
+      eng.reset();
+      setScore(0);
+      setGameOver(false);
+    }
     eng.start(); setRunning(true);
   };
   const handlePause = () => {
@@ -72,7 +81,7 @@ export default function PlayGame() {
   };
   const handleReset = () => {
     const eng = canvasRef.current; if (!eng) return;
-    eng.reset(); setScore(0); setRunning(false);
+    eng.reset(); setScore(0); setRunning(false); setGameOver(false);
   };
 
   const submitScore = async () => {
@@ -99,7 +108,14 @@ export default function PlayGame() {
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} flexWrap="wrap">
           <Stack direction="row" spacing={1}>
             {!running ? (
-              <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={handleStart}>Start</Button>
+              <Button
+                variant="contained"
+                color={gameOver ? 'warning' : 'primary'}
+                startIcon={gameOver ? <RefreshIcon /> : <PlayArrowIcon />}
+                onClick={handleStart}
+              >
+                {gameOver ? 'Restart' : 'Start'}
+              </Button>
             ) : (
               <Button variant="outlined" startIcon={<PauseIcon />} onClick={handlePause}>Pause</Button>
             )}

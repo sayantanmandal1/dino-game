@@ -14,6 +14,7 @@ const DinoCanvas = forwardRef(function DinoCanvas(
   const engineRef = useRef(null);
   const inputRef = useRef(null);
   const [started, setStarted] = useState(false);
+  const [crashed, setCrashed] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -25,8 +26,21 @@ const DinoCanvas = forwardRef(function DinoCanvas(
     engine.load().then(() => {
       if (cancelled) return;
       engine.render();
-      if (autoStart) { setStarted(true); engine.start(); }
+      if (autoStart) { setStarted(true); setCrashed(false); engine.start(); }
     }).catch(() => {/* sprite load error; already logged */});
+
+    // Poll crashed state so the overlay can react to deaths (keyboard-triggered
+    // or from the engine itself on collision). Cheap: one comparison per frame.
+    let rafId = 0;
+    const pollCrashed = () => {
+      const e = engineRef.current;
+      if (e && e.dino) {
+        const dead = e.dino.state === 'crashed';
+        setCrashed((prev) => (prev !== dead ? dead : prev));
+      }
+      rafId = window.requestAnimationFrame(pollCrashed);
+    };
+    rafId = window.requestAnimationFrame(pollCrashed);
 
     if (!disableInput) {
       const input = new Input(window);
@@ -35,7 +49,7 @@ const DinoCanvas = forwardRef(function DinoCanvas(
         if (!e) return;
         if (e.dino.state === 'crashed') {
           e.reset(seed);
-          setStarted(true);
+          setStarted(true); setCrashed(false);
           e.start();
           return;
         }
@@ -48,7 +62,7 @@ const DinoCanvas = forwardRef(function DinoCanvas(
         const e = engineRef.current;
         if (!e) return;
         e.reset(seed);
-        setStarted(true);
+        setStarted(true); setCrashed(false);
         e.start();
       });
       input.attach();
@@ -57,6 +71,7 @@ const DinoCanvas = forwardRef(function DinoCanvas(
 
     return () => {
       cancelled = true;
+      if (rafId) window.cancelAnimationFrame(rafId);
       if (inputRef.current) inputRef.current.detach();
       engine.stop();
     };
@@ -64,9 +79,9 @@ const DinoCanvas = forwardRef(function DinoCanvas(
   }, []);
 
   useImperativeHandle(ref, () => ({
-    start: () => { setStarted(true); engineRef.current && engineRef.current.start(); },
+    start: () => { setStarted(true); setCrashed(false); engineRef.current && engineRef.current.start(); },
     stop: () => engineRef.current && engineRef.current.stop(),
-    reset: (s = seed) => engineRef.current && engineRef.current.reset(s),
+    reset: (s = seed) => { setCrashed(false); engineRef.current && engineRef.current.reset(s); },
     jump: () => engineRef.current && engineRef.current.jump(),
     setDuck: (d) => engineRef.current && engineRef.current.setDuck(d),
     setAutopilot: (fn) => engineRef.current && engineRef.current.setAutopilot(fn),
@@ -100,9 +115,25 @@ const DinoCanvas = forwardRef(function DinoCanvas(
     const e = engineRef.current;
     if (!e) return;
     if (e.dino && e.dino.state === 'crashed') e.reset(seed);
-    setStarted(true);
+    setStarted(true); setCrashed(false);
     e.start();
   };
+
+  // When crashed, clicking anywhere on the canvas itself (including the
+  // in-canvas restart sprite) restarts the game.
+  const handleCanvasClick = () => {
+    if (disableInput) return;
+    const e = engineRef.current;
+    if (!e) return;
+    if (e.dino && e.dino.state === 'crashed') {
+      handlePlay();
+    } else if (!e._running) {
+      handlePlay();
+    }
+  };
+
+  const showOverlay = !disableInput && !started && !autoStart && !crashed;
+  const overlayLabel = 'PRESS PLAY';
 
   return (
     <div
@@ -118,42 +149,55 @@ const DinoCanvas = forwardRef(function DinoCanvas(
         className="dino-canvas-frame"
         width={width}
         height={height}
+        onClick={handleCanvasClick}
         style={{
           width: '100%',
           height: 'auto',
           imageRendering: 'pixelated',
           display: 'block',
+          cursor: crashed ? 'pointer' : 'default',
         }}
         aria-label="Dino game canvas"
         data-testid="dino-canvas"
       />
-      {!started && !autoStart && !disableInput && (
+      {showOverlay && (
         <button
           type="button"
           onClick={handlePlay}
-          aria-label="Play"
+          aria-label={crashed ? 'Restart game' : 'Start game'}
           style={{
             position: 'absolute',
-            inset: 0,
-            margin: 'auto',
-            width: 96,
-            height: 96,
-            borderRadius: '50%',
-            border: 'none',
+            left: '50%',
+            // Sit low (around the ground line) to match Chromium's native "press
+            // space to start" placement. Aspect is 4:1 so 58% is near the ground.
+            top: crashed ? '62%' : '58%',
+            transform: 'translate(-50%, -50%)',
+            padding: '8px 18px',
+            background: '#f7f7f7',
+            color: '#535353',
+            border: '2px solid #535353',
+            borderRadius: 0,
             cursor: 'pointer',
-            background: 'rgba(0, 212, 255, 0.92)',
-            color: '#0a0e27',
-            fontSize: 42,
+            fontFamily: '"Courier New", ui-monospace, monospace',
             fontWeight: 700,
-            boxShadow: '0 8px 30px rgba(0,0,0,0.45)',
-            display: 'flex',
+            fontSize: 14,
+            letterSpacing: '0.18em',
+            imageRendering: 'pixelated',
+            display: 'inline-flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 10,
+            boxShadow: 'none',
+            WebkitFontSmoothing: 'none',
+            textRendering: 'geometricPrecision',
           }}
         >
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          {crashed ? null : (
+            /* Pixelated triangle "play" glyph. */
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" shapeRendering="crispEdges">
+              <path d="M7 5v14l11-7z" />
+            </svg>
+          )}
+          {overlayLabel}
         </button>
       )}
     </div>
